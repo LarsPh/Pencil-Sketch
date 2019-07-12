@@ -35,6 +35,7 @@ import os
 def to255Int(A, c=255):
     return np.uint8((A - np.amin(A))/(np.amax(A)-np.amin(A))*c)
 
+#edge detection
 def gradEdges(S, method):
     #gradient edge detection, works poorly even after denoising
     #S = cv2.GaussianBlur(S, (7,7), 0)
@@ -57,15 +58,16 @@ def gradEdges(S, method):
         G = cv2.Canny(S, lower, upper)
     return G
 
+#Draw strokes. Generate cross-like effect at junctions of strokes
 def drawLines(G, nDirec, kernR, darkerStroke):
     (r, c) = np.shape(G)
     kernScale = int(min(r, c)/kernR)
-
+    #generate line segments 
     L = np.zeros((kernScale*2+1, kernScale*2+1, nDirec))
     L[ : , kernScale+1, 0] = 1
     for i in range(nDirec):
         L[ : , : ,i] = np.round(rotate(L[ : , : ,0], i/nDirec*180, reshape=False))
-
+    #classification, fftconvolve save mem compared with convolve when N is large
     Gc = np.zeros((r, c, nDirec))
     for i in range(nDirec):
         Gc[ : , : ,i] = fftconvolve(G, L[ : , : ,i], mode="same")
@@ -82,6 +84,7 @@ def drawLines(G, nDirec, kernR, darkerStroke):
     Sp = Sp ** darkerStroke
     return Sp
 
+#Tone transformation
 def transferTone(A, w1, w2, w3):
     A = to255Int(A)
     (r, c) = np.shape(A)
@@ -94,13 +97,14 @@ def transferTone(A, w1, w2, w3):
     p = w1*p1+w2*p2+w3*p3
     p /= np.sum(p)
     #plt.plot(inten, p, 'ro')
+    #smoothen the curve
     fp = UnivariateSpline(inten, p)
     fp.set_smoothing_factor(0.000035)
     p = fp(inten)
     plt.plot(inten, p, 'go')
     p /= np.sum(p)
     cp = np.zeros(256)
-
+    #calculate cunmulative density function
     for i in range(256):
         cp[i] = np.sum(p[0:i])
     cp /= cp[255]
@@ -118,7 +122,7 @@ def transferTone(A, w1, w2, w3):
     for i in range(256):
         for j in range(256):
             Diff[i, j] = np.abs(cs[i]-cp[j])
-    
+    #tonal mapping
     matching = np.zeros(256)
     for i in range(256):
         minIdx = 0
@@ -128,23 +132,26 @@ def transferTone(A, w1, w2, w3):
                 minVal = Diff[i, j]
                 minIdx = j
         matching[i] = minIdx
-
     J = np.zeros((r,c))
     for i in range(r):
         for j in range(c):
             J[i, j] = matching[A[i, j]]
+
     t = np.zeros(256)
     for i in range(r):
         for j in range(c):
             t[np.uint8(J[i, j])] += 1
     t /= r*c
     plt.plot(inten, t, 'bo')
+    #uncommnet to see the comparison on target(p) and mapped(t) histogram
     #plt.show()
     return to255Int(J)
 
+#Transfer the texture so that it matches the tone image by sovling linear equation
 def renderTexture(J, H1, lam):
     (r, c) = np.shape(J)
     (n, m) = np.shape(H1)
+    #adjust the resolution of texture
     x = int(np.ceil(r/n))
     y = int(np.ceil(c/m))
     H2 = H1
@@ -155,33 +162,47 @@ def renderTexture(J, H1, lam):
         H = np.vstack((H, H2))
     H = H[ :r, :c]
     Image.fromarray(to255Int(H), "L").save("temp/texture_test1.jpg")
+
     epsilon = 0.0001
     H = np.float64(H)/255
+    #prevent log(0)
     J = np.float64(J+epsilon)/255
-
+    #transform to vector
     h = np.reshape(H, r*c)
     j = np.reshape(J, r*c)
     logh = np.log(h)
     logj = np.log(j)
     i = np.ones(r*c)
+    #use methods for sparse matrix to prevent mem problems
     Dx = spdiags(np.array([-i,i]), np.array([0,1]), r*c, r*c)
     Dy = spdiags(np.array([-i,i]), np.array([0,c]), r*c, r*c)
     A = spdiags(logh*logh, 0, r*c, r*c)+lam*(Dx.transpose().dot(Dx)+Dy.transpose().dot(Dy))
     b = logh*logj
+    #conjugate gradient
     beta, _ = cg(A, b)
     Beta = beta.reshape(r, c)
     T = H**Beta
+    #elements of T have values between 0 to 1 
     return T
 
+#Combine the pencil strokes and tonal texture
 def combineST(S, T):
     return to255Int(S) * T
 
+#edgeDetctMthd: choose method for edge detection. 1 for bilateral filter + Laplacian, 2 for Canny
+#kerndirN: value for line segments (kernal) with different directions
+#kernScale: the scale for kernal would be min(w, h)/kerScale. w and h are the height and width of input image
+#darkerStroke: larger value would make the stroke darker
+#w1, w2, w3: weight of three distribution
+#lam: lambda multiplied by the gradient of beta in formula (8) in final step (check the paper for details) 
 def pencilSketch(srcDir="source_images", txPath="textures/texture1.jpg", edgeDetctMthd=1, kerdireN=8, kernScale=200, darkerStroke=2, w1=0.52, w2=0.37, w3=0.11, lam=0.2):
     print("Generating images...")
+
     for fname in os.listdir(srcDir):
         im = Image.open(srcDir+"/"+fname)
         ImRGB = np.array(im)
         ImLUV = cv2.cvtColor(ImRGB, cv2.COLOR_RGB2Luv)
+        #transform on L channal
         ImGs = ImLUV[ : , : ,0]
         if not os.path.exists("temp"):
             os.mkdir("temp")
@@ -189,6 +210,7 @@ def pencilSketch(srcDir="source_images", txPath="textures/texture1.jpg", edgeDet
             os.mkdir("output")
         Image.fromarray(ImGs, "L").save("temp/grayscale_"+fname) 
         #print(np.shape(ImGs))
+
         G = gradEdges(ImGs, 1)
         Image.fromarray(to255Int(G), "L").save("temp/gradient_"+fname)
         Sp = drawLines(G, kerdireN, kernScale, darkerStroke)
@@ -204,6 +226,7 @@ def pencilSketch(srcDir="source_images", txPath="textures/texture1.jpg", edgeDet
         ImLUV[ : , : ,0] = to255Int(R)
         ImRGB = cv2.cvtColor(ImLUV, cv2.COLOR_Luv2RGB)
         Image.fromarray(ImRGB, "RGB").save("output/colored_pencil_sketch_"+fname)
+
     print("Finished generation")
 
 pencilSketch()
