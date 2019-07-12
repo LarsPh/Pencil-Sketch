@@ -14,7 +14,8 @@ Produce pencil drawing from natural images.
 ## Getting Started
 
 ### Prerequisites
-Modules required: numpy, scipy, Pillow, opencv-python, matplotlib.
+* Modules required: numpy, scipy, Pillow, opencv-python, matplotlib.
+* Textures of pencil sketch are provide in directory "textures" if required. 
 
 ### Running the program
 Call function pencilSketch() to run the program, you can also specify the parameters to change the looking of out image. For details of parameters please check the comment in source code and the references.
