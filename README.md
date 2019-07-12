@@ -21,3 +21,14 @@ Call function pencilSketch() to run the program, you can also specify the parame
 
 ### Result images
 The default directory program looks for input and texture images are "soure_images" and "textures", you can modify the folders' name by specifying them when calling the function. The output colored and grayscale pencil sketch images are saved in folder output. The intermediate images are saved in folder temp.
+
+## Gallery
+![test1](https://raw.githubusercontent.com/LarsPh/Pencil-Sketch/master/gallery/input/test1.jpg)
+![test1_output](https://raw.githubusercontent.com/LarsPh/Pencil-Sketch/master/gallery/output/pencil_sketch_test1.jpg)
+![test1_colored_output](https://raw.githubusercontent.com/LarsPh/Pencil-Sketch/master/gallery/output/colored_pencil_sketch_test1.jpg)
+![test2](https://raw.githubusercontent.com/LarsPh/Pencil-Sketch/master/gallery/input/test2.png)
+![test2_output](https://raw.githubusercontent.com/LarsPh/Pencil-Sketch/master/gallery/output/pencil_sketch_test2.png)
+![test2_colored_output](https://raw.githubusercontent.com/LarsPh/Pencil-Sketch/master/gallery/output/colored_pencil_sketch_test2.png)
+![test3](https://raw.githubusercontent.com/LarsPh/Pencil-Sketch/master/gallery/input/test3.jpg)
+![test3_output](https://raw.githubusercontent.com/LarsPh/Pencil-Sketch/master/gallery/output/pencil_sketch_test3.jpg)
+![test3_colored_output](https://raw.githubusercontent.com/LarsPh/Pencil-Sketch/master/gallery/output/colored_pencil_sketch_test3.jpg)
